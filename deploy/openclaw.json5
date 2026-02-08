@@ -1,0 +1,89 @@
+// OCMT MVP Configuration
+// Multi-agent setup with Telegram integration
+{
+  // Gateway settings
+  gateway: {
+    port: 18789,
+    bind: "lan", // Allow connections from Docker network
+    auth: {
+      // Set a secure token for API access
+      token: "${GATEWAY_TOKEN}",
+    },
+  },
+
+  // Agent configuration - each user gets their own agent
+  agents: {
+    defaults: {
+      workspace: "/home/node/.openclaw/workspace",
+      model: "claude-sonnet-4-20250514", // Default model, can override per-agent
+    },
+    list: [
+      // Demo agents - add more as needed
+      {
+        id: "demo-alice",
+        workspace: "/home/node/.openclaw/workspaces/alice",
+        personality: "You are Alice's helpful AI assistant. Be friendly and concise.",
+      },
+      {
+        id: "demo-bob",
+        workspace: "/home/node/.openclaw/workspaces/bob",
+        personality: "You are Bob's AI assistant. Be professional and thorough.",
+      },
+      {
+        id: "main",
+        default: true,
+        workspace: "/home/node/.openclaw/workspaces/main",
+        personality: "You are the OCMT demo assistant. Help users understand what you can do.",
+      },
+    ],
+  },
+
+  // Route Telegram messages to agents based on chat ID
+  // After users connect, add their chat_id here
+  bindings: [
+    // Example: Route specific Telegram user to specific agent
+    // { agentId: "demo-alice", match: { channel: "telegram", peer: "ALICE_CHAT_ID" } },
+    // { agentId: "demo-bob", match: { channel: "telegram", peer: "BOB_CHAT_ID" } },
+
+    // Default: unmatched Telegram messages go to "main" agent
+    { agentId: "main", match: { channel: "telegram" } },
+  ],
+
+  // Telegram channel configuration
+  channels: {
+    telegram: {
+      // Token from @BotFather - set via environment variable
+      token: "${TELEGRAM_BOT_TOKEN}",
+
+      // Who can message the bot
+      // "open" = anyone (for demo)
+      // "pairing" = require approval
+      dmPolicy: "open",
+
+      // Optional: restrict to specific users
+      // allowFrom: ["username1", "username2"],
+    },
+  },
+
+  // Tool permissions
+  tools: {
+    // Disable dangerous tools for demo
+    sandbox: {
+      enabled: false, // No Docker sandboxing for simplicity
+    },
+    browser: {
+      enabled: true,
+    },
+  },
+
+  // Session settings
+  session: {
+    // Keep conversation history
+    historyLimit: 100,
+  },
+
+  // Logging
+  logging: {
+    level: "info",
+  },
+}

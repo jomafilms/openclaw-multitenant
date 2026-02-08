@@ -759,7 +759,9 @@ export class MemoryIndexManager implements MemorySearchManager {
     } catch (err) {
       try {
         this.db.exec("ROLLBACK");
-      } catch {}
+      } catch {
+        // ROLLBACK may fail if transaction wasn't started or already rolled back - safe to ignore
+      }
       throw err;
     }
   }
@@ -1131,14 +1133,18 @@ export class MemoryIndexManager implements MemorySearchManager {
             `DELETE FROM ${VECTOR_TABLE} WHERE id IN (SELECT id FROM chunks WHERE path = ? AND source = ?)`,
           )
           .run(stale.path, "memory");
-      } catch {}
+      } catch (err) {
+        log.debug("Failed to delete from vector table (may not exist)", { error: String(err) });
+      }
       this.db.prepare(`DELETE FROM chunks WHERE path = ? AND source = ?`).run(stale.path, "memory");
       if (this.fts.enabled && this.fts.available) {
         try {
           this.db
             .prepare(`DELETE FROM ${FTS_TABLE} WHERE path = ? AND source = ? AND model = ?`)
             .run(stale.path, "memory", this.provider.model);
-        } catch {}
+        } catch (err) {
+          log.debug("Failed to delete from FTS table (may not exist)", { error: String(err) });
+        }
       }
     }
   }
@@ -1230,7 +1236,9 @@ export class MemoryIndexManager implements MemorySearchManager {
             `DELETE FROM ${VECTOR_TABLE} WHERE id IN (SELECT id FROM chunks WHERE path = ? AND source = ?)`,
           )
           .run(stale.path, "sessions");
-      } catch {}
+      } catch (err) {
+        log.debug("Failed to delete from vector table (may not exist)", { error: String(err) });
+      }
       this.db
         .prepare(`DELETE FROM chunks WHERE path = ? AND source = ?`)
         .run(stale.path, "sessions");
@@ -1239,7 +1247,9 @@ export class MemoryIndexManager implements MemorySearchManager {
           this.db
             .prepare(`DELETE FROM ${FTS_TABLE} WHERE path = ? AND source = ? AND model = ?`)
             .run(stale.path, "sessions", this.provider.model);
-        } catch {}
+        } catch (err) {
+          log.debug("Failed to delete from FTS table (may not exist)", { error: String(err) });
+        }
       }
     }
   }
@@ -1502,7 +1512,9 @@ export class MemoryIndexManager implements MemorySearchManager {
     } catch (err) {
       try {
         this.db.close();
-      } catch {}
+      } catch {
+        // DB may already be closed or in bad state - safe to ignore during cleanup
+      }
       await this.removeIndexFiles(tempDbPath);
       restoreOriginalState();
       throw err;
@@ -1515,7 +1527,9 @@ export class MemoryIndexManager implements MemorySearchManager {
     if (this.fts.enabled && this.fts.available) {
       try {
         this.db.exec(`DELETE FROM ${FTS_TABLE}`);
-      } catch {}
+      } catch (err) {
+        log.debug("Failed to delete from FTS table during reset", { error: String(err) });
+      }
     }
     this.dropVectorTable();
     this.vector.dims = undefined;
@@ -2331,14 +2345,18 @@ export class MemoryIndexManager implements MemorySearchManager {
             `DELETE FROM ${VECTOR_TABLE} WHERE id IN (SELECT id FROM chunks WHERE path = ? AND source = ?)`,
           )
           .run(entry.path, options.source);
-      } catch {}
+      } catch (err) {
+        log.debug("Failed to delete from vector table", { error: String(err) });
+      }
     }
     if (this.fts.enabled && this.fts.available) {
       try {
         this.db
           .prepare(`DELETE FROM ${FTS_TABLE} WHERE path = ? AND source = ? AND model = ?`)
           .run(entry.path, options.source, this.provider.model);
-      } catch {}
+      } catch (err) {
+        log.debug("Failed to delete from FTS table", { error: String(err) });
+      }
     }
     this.db
       .prepare(`DELETE FROM chunks WHERE path = ? AND source = ?`)
@@ -2375,7 +2393,9 @@ export class MemoryIndexManager implements MemorySearchManager {
       if (vectorReady && embedding.length > 0) {
         try {
           this.db.prepare(`DELETE FROM ${VECTOR_TABLE} WHERE id = ?`).run(id);
-        } catch {}
+        } catch (err) {
+          log.debug("Failed to delete from vector table before insert", { error: String(err) });
+        }
         this.db
           .prepare(`INSERT INTO ${VECTOR_TABLE} (id, embedding) VALUES (?, ?)`)
           .run(id, vectorToBlob(embedding));

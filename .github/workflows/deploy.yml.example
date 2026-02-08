@@ -1,0 +1,170 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "management-server/**"
+      - "user-ui/**"
+      - "agent-server/**"
+  workflow_dispatch:
+    inputs:
+      component:
+        description: "Component to deploy"
+        required: true
+        default: "all"
+        type: choice
+        options:
+          - all
+          - management
+          - user-ui
+          - agent
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      management: ${{ steps.changes.outputs.management }}
+      user-ui: ${{ steps.changes.outputs.user-ui }}
+      agent: ${{ steps.changes.outputs.agent }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: changes
+        with:
+          filters: |
+            management:
+              - 'management-server/**'
+            user-ui:
+              - 'user-ui/**'
+            agent:
+              - 'agent-server/**'
+
+  deploy-management:
+    needs: detect-changes
+    if: |
+      needs.detect-changes.outputs.management == 'true' ||
+      github.event.inputs.component == 'all' ||
+      github.event.inputs.component == 'management'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy management server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: YOUR_MGMT_SERVER_IP
+          username: root
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            cd /opt/management-server
+
+            # Backup current version
+            cp server.js server.js.backup
+
+            # Pull latest (if using git) or receive files
+            # For now, we'll use the rsync approach via scp
+
+      - name: Sync files
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: YOUR_MGMT_SERVER_IP
+          username: root
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          source: "management-server/*"
+          target: "/opt/"
+          strip_components: 0
+
+      - name: Install and restart
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: YOUR_MGMT_SERVER_IP
+          username: root
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            cd /opt/management-server
+            npm install --production
+            pm2 restart ocmt-mgmt
+            sleep 3
+            curl -sf http://localhost:3000/health || exit 1
+
+  deploy-user-ui:
+    needs: detect-changes
+    if: |
+      needs.detect-changes.outputs.user-ui == 'true' ||
+      github.event.inputs.component == 'all' ||
+      github.event.inputs.component == 'user-ui'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: user-ui/package-lock.json
+
+      - name: Install dependencies
+        run: cd user-ui && npm ci
+
+      - name: Build
+        run: cd user-ui && npm run build
+
+      - name: Deploy to production
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: YOUR_UI_SERVER_IP
+          username: root
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          source: "user-ui/dist/*"
+          target: "/var/www/ocmt/"
+          strip_components: 2
+          rm: true
+
+  deploy-agent:
+    needs: detect-changes
+    if: |
+      needs.detect-changes.outputs.agent == 'true' ||
+      github.event.inputs.component == 'all' ||
+      github.event.inputs.component == 'agent'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Sync files
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: YOUR_AGENT_SERVER_IP
+          username: root
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          source: "agent-server/*"
+          target: "/opt/ocmt/"
+          strip_components: 0
+
+      - name: Install and restart
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: YOUR_AGENT_SERVER_IP
+          username: root
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            cd /opt/ocmt/agent-server
+            npm install --production
+            pm2 restart ocmt-agent || pm2 start server.js --name ocmt-agent
+            sleep 3
+            curl -sf http://localhost:4000/health || exit 1
+
+  notify:
+    needs: [deploy-management, deploy-user-ui, deploy-agent]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Summary
+        run: |
+          echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Component | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Management Server | ${{ needs.deploy-management.result || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| User UI | ${{ needs.deploy-user-ui.result || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Agent Server | ${{ needs.deploy-agent.result || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY

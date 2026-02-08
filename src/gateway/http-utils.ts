@@ -2,6 +2,25 @@ import type { IncomingMessage } from "node:http";
 import { randomUUID } from "node:crypto";
 import { buildAgentMainSessionKey, normalizeAgentId } from "../routing/session-key.js";
 
+/**
+ * Get client IP address from request, checking X-Forwarded-For first
+ */
+export function getClientIp(req: IncomingMessage): string | undefined {
+  // Check X-Forwarded-For first (leftmost is client if proxy trusted)
+  const xff = req.headers["x-forwarded-for"];
+  if (typeof xff === "string" && xff) {
+    const first = xff.split(",")[0]?.trim();
+    if (first) return first;
+  }
+  // Check X-Real-IP
+  const realIp = req.headers["x-real-ip"];
+  if (typeof realIp === "string" && realIp) {
+    return realIp;
+  }
+  // Fall back to socket remote address
+  return req.socket?.remoteAddress;
+}
+
 export function getHeader(req: IncomingMessage, name: string): string | undefined {
   const raw = req.headers[name.toLowerCase()];
   if (typeof raw === "string") {

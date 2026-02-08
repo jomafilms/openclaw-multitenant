@@ -4,9 +4,12 @@ import { streamSimple } from "@mariozechner/pi-ai";
 import { createAgentSession, SessionManager, SettingsManager } from "@mariozechner/pi-coding-agent";
 import fs from "node:fs/promises";
 import os from "node:os";
+import path from "node:path";
 import type { EmbeddedRunAttemptParams, EmbeddedRunAttemptResult } from "./types.js";
 import { resolveHeartbeatPrompt } from "../../../auto-reply/heartbeat.js";
 import { resolveChannelCapabilities } from "../../../config/channel-capabilities.js";
+import { getSecureSessionStore } from "../../../config/sessions/encrypted-store.js";
+import { VaultLockedError } from "../../../config/sessions/secure-transcript.js";
 import { getMachineDisplayName } from "../../../infra/machine-name.js";
 import { MAX_IMAGE_BYTES } from "../../../media/constants.js";
 import { getGlobalHookRunner } from "../../../plugins/hook-runner-global.js";
@@ -162,6 +165,19 @@ export async function runEmbeddedAttempt(
       : sandbox.workspaceDir
     : resolvedWorkspace;
   await fs.mkdir(effectiveWorkspace, { recursive: true });
+
+  // Check vault status - if a secure session store has been initialized, it must be unlocked
+  // This ensures we fail fast if the vault is locked rather than creating an unencrypted session
+  const sessionDir = path.dirname(params.sessionFile);
+  const secureStore = getSecureSessionStore(sessionDir);
+  if (secureStore && !secureStore.isUnlocked()) {
+    // Vault is initialized but locked - fail fast with unlock URL
+    // The unlock URL should point to the management server's vault unlock page
+    throw new VaultLockedError(
+      "Your vault is locked. Please unlock your vault to continue.",
+      "/vault/unlock",
+    );
+  }
 
   let restoreSkillEnv: (() => void) | undefined;
   process.chdir(effectiveWorkspace);

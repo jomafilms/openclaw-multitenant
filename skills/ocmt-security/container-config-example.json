@@ -1,0 +1,19 @@
+{
+  "$comment": "Inject these settings into container's ~/.openclaw/openclaw.json at provisioning time",
+
+  "mcpServers": {
+    "ocmt": {
+      "url": "https://YOUR_DOMAIN/api/mcp",
+      "headers": {
+        "Authorization": "Bearer ${OCMT_CONTAINER_TOKEN}",
+        "X-User-Id": "${OCMT_USER_ID}"
+      }
+    }
+  },
+
+  "skills": {
+    "load": {
+      "extraDirs": ["/opt/ocmt/skills"]
+    }
+  }
+}

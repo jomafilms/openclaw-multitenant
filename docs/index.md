@@ -1,192 +1,179 @@
+# OCMT Documentation Index
+
+> Entry point for architecture, planning, and implementation documents
+
 ---
-summary: "OpenClaw is a multi-channel gateway for AI agents that runs on any OS."
-read_when:
-  - Introducing OpenClaw to newcomers
-title: "OpenClaw"
+
+## What is OCMT?
+
+OCMT extends OpenClaw with:
+
+- **Web UI** - Chat with your AI agent via browser (no CLI needed)
+- **Multi-tenant infrastructure** - Isolated containers per user
+- **Distributed trust** - Container-side secret store with zero-knowledge encryption
+- **Capability-based sharing** - Ed25519 signed tokens for peer-to-peer access
+- **User-friendly onboarding** - Non-technical users can get started easily
+
 ---
 
-# OpenClaw 🦞
+## Current Architecture
 
-<p align="center">
-    <img
-        src="/assets/openclaw-logo-text-dark.png"
-        alt="OpenClaw"
-        width="500"
-        class="dark:hidden"
-    />
-    <img
-        src="/assets/openclaw-logo-text.png"
-        alt="OpenClaw"
-        width="500"
-        class="hidden dark:block"
-    />
-</p>
+### Core Documents
 
-> _"EXFOLIATE! EXFOLIATE!"_ — A space lobster, probably
+| Document                                                                           | Description                                                   |
+| ---------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| [ARCHITECTURE.md](/ARCHITECTURE.md)                                                | Core system architecture, security rules, container isolation |
+| [architecture/container-secret-store.md](./architecture/container-secret-store.md) | Container-side secret store - the current vault system        |
+| [mesh/trust-model.md](./mesh/trust-model.md)                                       | Relay service trust model and threat analysis                 |
+| [MESH-SECURITY-ROADMAP.md](./MESH-SECURITY-ROADMAP.md)                             | Current implementation roadmap with phase status              |
+| [ZERO-KNOWLEDGE-INTEGRATIONS.md](./ZERO-KNOWLEDGE-INTEGRATIONS.md)                 | MCP config injection, zero-knowledge OAuth flow               |
+| [group-skills.md](./group-skills.md)                                               | Group skill docs - teaching agents to use group APIs          |
 
-<p align="center">
-  <strong>Any OS gateway for AI agents across WhatsApp, Telegram, Discord, iMessage, and more.</strong><br />
-  Send a message, get an agent response from your pocket. Plugins add Mattermost and more.
-</p>
+### Security & Operations
 
-<Columns>
-  <Card title="Get Started" href="/start/getting-started" icon="rocket">
-    Install OpenClaw and bring up the Gateway in minutes.
-  </Card>
-  <Card title="Run the Wizard" href="/start/wizard" icon="sparkles">
-    Guided setup with `openclaw onboard` and pairing flows.
-  </Card>
-  <Card title="Open the Control UI" href="/web/control-ui" icon="layout-dashboard">
-    Launch the browser dashboard for chat, config, and sessions.
-  </Card>
-</Columns>
+| Document                                                           | Description                              |
+| ------------------------------------------------------------------ | ---------------------------------------- |
+| [security/encrypted-sessions.md](./security/encrypted-sessions.md) | Zero-knowledge encrypted session storage |
+| [api/vault-endpoints.md](./api/vault-endpoints.md)                 | Vault API endpoint documentation         |
+| [plugin-security.md](./plugin-security.md)                         | Plugin isolation and security model      |
+| [PRODUCTION-REVIEW-STATUS.md](./PRODUCTION-REVIEW-STATUS.md)       | Production security review status        |
+| [ops-runbook.md](./ops-runbook.md)                                 | Operational runbook for production       |
+| [deployment-checklist.md](./deployment-checklist.md)               | Deployment checklist                     |
 
-## What is OpenClaw?
+### Research
 
-OpenClaw is a **self-hosted gateway** that connects your favorite chat apps — WhatsApp, Telegram, Discord, iMessage, and more — to AI coding agents like Pi. You run a single Gateway process on your own machine (or a server), and it becomes the bridge between your messaging apps and an always-available AI assistant.
+| Document                                                                       | Description                                            |
+| ------------------------------------------------------------------------------ | ------------------------------------------------------ |
+| [research/MULTI_TENANT_AI_RESEARCH.md](./research/MULTI_TENANT_AI_RESEARCH.md) | Industry analysis, Web3 approaches, security deep dive |
+| [CLOUD_RUN_ARCHITECTURE.md](./CLOUD_RUN_ARCHITECTURE.md)                       | Future cloud scaling architecture (draft)              |
 
-**Who is it for?** Developers and power users who want a personal AI assistant they can message from anywhere — without giving up control of their data or relying on a hosted service.
+---
 
-**What makes it different?**
+## Architecture Overview
 
-- **Self-hosted**: runs on your hardware, your rules
-- **Multi-channel**: one Gateway serves WhatsApp, Telegram, Discord, and more simultaneously
-- **Agent-native**: built for coding agents with tool use, sessions, memory, and multi-agent routing
-- **Open source**: MIT licensed, community-driven
+### Distributed Trust Model
 
-**What do you need?** Node 22+, an API key (Anthropic recommended), and 5 minutes.
-
-## How it works
-
-```mermaid
-flowchart LR
-  A["Chat apps + plugins"] --> B["Gateway"]
-  B --> C["Pi agent"]
-  B --> D["CLI"]
-  B --> E["Web Control UI"]
-  B --> F["macOS app"]
-  B --> G["iOS and Android nodes"]
+```
+┌──────────────────────────────────┐
+│   Management Server (Trusted)     │
+│   - User accounts & auth          │
+│   - Group permissions database    │
+│   - Recovery system coordination  │
+└──────────────────────────────────┘
+           ↕ (HTTPS, auth token)
+┌──────────────────────────────────┐
+│   Relay Service (Untrusted)       │
+│   - Zero-knowledge message relay  │
+│   - Revocation blocklist (Bloom)  │
+│   - Wake-on-request               │
+└──────────────────────────────────┘
+           ↕ (Encrypted payloads)
+┌──────────────────────────────────┐
+│   Agent Server (Container Mgmt)   │
+│   - Docker container lifecycle    │
+│   - Unlock proxy (WebSocket)      │
+│   - Per-user container isolation  │
+└──────────────────────────────────┘
+           ↕ (Direct unlock flow)
+┌──────────────────────────────────┐
+│   User Containers (Isolated)      │
+│   - OpenClaw agent runtime        │
+│   - Container-side secret store   │
+│   - Ed25519 capability tokens     │
+│   - Encrypted at-rest vault       │
+└──────────────────────────────────┘
 ```
 
-The Gateway is the single source of truth for sessions, routing, and channel connections.
+### Key Security Principles
 
-## Key capabilities
+1. **Secrets never leave containers** - Management server holds only metadata
+2. **Direct unlock flow** - Browser → container directly, no password via server
+3. **Container isolation** - Per-user containers with network/filesystem isolation
+4. **Capability tokens** - Ed25519-signed tokens for cross-container sharing
+5. **Relay service** - Zero-knowledge message relay with revocation blocklist
 
-<Columns>
-  <Card title="Multi-channel gateway" icon="network">
-    WhatsApp, Telegram, Discord, and iMessage with a single Gateway process.
-  </Card>
-  <Card title="Plugin channels" icon="plug">
-    Add Mattermost and more with extension packages.
-  </Card>
-  <Card title="Multi-agent routing" icon="route">
-    Isolated sessions per agent, workspace, or sender.
-  </Card>
-  <Card title="Media support" icon="image">
-    Send and receive images, audio, and documents.
-  </Card>
-  <Card title="Web Control UI" icon="monitor">
-    Browser dashboard for chat, config, sessions, and nodes.
-  </Card>
-  <Card title="Mobile nodes" icon="smartphone">
-    Pair iOS and Android nodes with Canvas support.
-  </Card>
-</Columns>
+### Container-Side Secret Store
 
-## Quick start
+Each user container maintains its own encrypted vault:
 
-<Steps>
-  <Step title="Install OpenClaw">
-    ```bash
-    npm install -g openclaw@latest
-    ```
-  </Step>
-  <Step title="Onboard and install the service">
-    ```bash
-    openclaw onboard --install-daemon
-    ```
-  </Step>
-  <Step title="Pair WhatsApp and start the Gateway">
-    ```bash
-    openclaw channels login
-    openclaw gateway --port 18789
-    ```
-  </Step>
-</Steps>
+| Protected Data      | Encryption         |
+| ------------------- | ------------------ |
+| Session transcripts | XChaCha20-Poly1305 |
+| API keys            | XChaCha20-Poly1305 |
+| OAuth tokens        | XChaCha20-Poly1305 |
+| Capability tokens   | Ed25519 signed     |
 
-Need the full install and dev setup? See [Quick start](/start/quickstart).
+- **Key Derivation**: Argon2id (64MB memory, GPU-resistant)
+- **Recovery**: BIP39 12-word phrase, social recovery, hardware backup
+- **Session**: 30-min auto-lock, biometric unlock (FaceID/TouchID)
 
-## Dashboard
+See [architecture/container-secret-store.md](./architecture/container-secret-store.md) for full specification.
 
-Open the browser Control UI after the Gateway starts.
+### Capability Tokens
 
-- Local default: [http://127.0.0.1:18789/](http://127.0.0.1:18789/)
-- Remote access: [Web surfaces](/web) and [Tailscale](/gateway/tailscale)
+Users share access via Ed25519-signed capability tokens:
 
-<p align="center">
-  <img src="whatsapp-openclaw.jpg" alt="OpenClaw" width="420" />
-</p>
-
-## Configuration (optional)
-
-Config lives at `~/.openclaw/openclaw.json`.
-
-- If you **do nothing**, OpenClaw uses the bundled Pi binary in RPC mode with per-sender sessions.
-- If you want to lock it down, start with `channels.whatsapp.allowFrom` and (for groups) mention rules.
-
-Example:
-
-```json5
+```javascript
 {
-  channels: {
-    whatsapp: {
-      allowFrom: ["+15555550123"],
-      groups: { "*": { requireMention: true } },
-    },
-  },
-  messages: { groupChat: { mentionPatterns: ["@openclaw"] } },
+  iss: "<issuer-public-key>",      // Who created this
+  sub: "<subject-public-key>",      // Who can use it
+  resource: "google_calendar",      // What resource
+  scope: ["read", "list"],          // What operations
+  exp: 1707264000,                  // Expires at
+  sig: "<ed25519-signature>"        // Cryptographic signature
 }
 ```
 
-## Start here
+See [architecture/container-secret-store.md](./architecture/container-secret-store.md#capability-tokens) for details.
 
-<Columns>
-  <Card title="Docs hubs" href="/start/hubs" icon="book-open">
-    All docs and guides, organized by use case.
-  </Card>
-  <Card title="Configuration" href="/gateway/configuration" icon="settings">
-    Core Gateway settings, tokens, and provider config.
-  </Card>
-  <Card title="Remote access" href="/gateway/remote" icon="globe">
-    SSH and tailnet access patterns.
-  </Card>
-  <Card title="Channels" href="/channels/telegram" icon="message-square">
-    Channel-specific setup for WhatsApp, Telegram, Discord, and more.
-  </Card>
-  <Card title="Nodes" href="/nodes" icon="smartphone">
-    iOS and Android nodes with pairing and Canvas.
-  </Card>
-  <Card title="Help" href="/help" icon="life-buoy">
-    Common fixes and troubleshooting entry point.
-  </Card>
-</Columns>
+---
 
-## Learn more
+## Implementation Status
 
-<Columns>
-  <Card title="Full feature list" href="/concepts/features" icon="list">
-    Complete channel, routing, and media capabilities.
-  </Card>
-  <Card title="Multi-agent routing" href="/concepts/multi-agent" icon="route">
-    Workspace isolation and per-agent sessions.
-  </Card>
-  <Card title="Security" href="/gateway/security" icon="shield">
-    Tokens, allowlists, and safety controls.
-  </Card>
-  <Card title="Troubleshooting" href="/gateway/troubleshooting" icon="wrench">
-    Gateway diagnostics and common errors.
-  </Card>
-  <Card title="About and credits" href="/reference/credits" icon="info">
-    Project origins, contributors, and license.
-  </Card>
-</Columns>
+| Component          | Status         | Description                                          |
+| ------------------ | -------------- | ---------------------------------------------------- |
+| Encrypted Sessions | ✅ Complete    | Zero-knowledge session transcript storage            |
+| API Key Storage    | ✅ Complete    | Zero-knowledge API key vault                         |
+| OAuth PKCE         | ✅ Complete    | Zero-knowledge token exchange (container ↔ provider) |
+| Biometric Unlock   | ✅ Complete    | FaceID/TouchID via WebAuthn                          |
+| Recovery System    | ✅ Complete    | BIP39, social recovery, hardware backup              |
+| Capability Tokens  | ✅ Complete    | Ed25519 signed cross-container access                |
+| Relay & Sharing    | 🔄 In Progress | Encrypted relay, wake-on-request                     |
+
+See [MESH-SECURITY-ROADMAP.md](./MESH-SECURITY-ROADMAP.md) for detailed roadmap.
+
+---
+
+## Deployment
+
+### Production Servers (DigitalOcean)
+
+| Server                | IP                   | Purpose                   |
+| --------------------- | -------------------- | ------------------------- |
+| **User UI**           | YOUR_UI_SERVER_IP    | nginx serving web UI      |
+| **Management Server** | YOUR_MGMT_SERVER_IP  | Auth, groups, permissions |
+| **Agent Server**      | YOUR_AGENT_SERVER_IP | Container orchestration   |
+
+### Domain
+
+- **Production**: https://YOUR_DOMAIN
+- SSL via Let's Encrypt
+- nginx proxies `/api/*` to management server, `/ws/*` to agent server
+
+---
+
+## Archived Documentation
+
+Historical documents from the MVP era (Feb 2-3, 2026) have been moved to:
+[docs/archive/mvp-era/](./archive/mvp-era/)
+
+These describe the original management-server vault implementation which has been superseded by the container-side secret store architecture.
+
+---
+
+## Getting Started
+
+1. Read [ARCHITECTURE.md](/ARCHITECTURE.md) for system overview
+2. Review [architecture/container-secret-store.md](./architecture/container-secret-store.md) for the current vault system
+3. Check [MESH-SECURITY-ROADMAP.md](./MESH-SECURITY-ROADMAP.md) for implementation status
+4. Reference [mesh/trust-model.md](./mesh/trust-model.md) for security analysis

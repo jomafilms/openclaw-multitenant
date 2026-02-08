@@ -197,7 +197,9 @@ async function readResponseWithLimit(res: Response, maxBytes: number): Promise<B
         if (total > maxBytes) {
           try {
             await reader.cancel();
-          } catch {}
+          } catch {
+            // Stream may already be closed/errored - safe to ignore
+          }
           throw new MediaFetchError(
             "max_bytes",
             `Failed to fetch media from ${res.url || "response"}: payload exceeds maxBytes ${maxBytes}`,
@@ -209,7 +211,9 @@ async function readResponseWithLimit(res: Response, maxBytes: number): Promise<B
   } finally {
     try {
       reader.releaseLock();
-    } catch {}
+    } catch {
+      // Lock may already be released if stream errored - safe to ignore
+    }
   }
 
   return Buffer.concat(

@@ -1,5 +1,6 @@
 import type { TlsOptions } from "node:tls";
 import type { WebSocketServer } from "ws";
+import { timingSafeEqual } from "node:crypto";
 import {
   createServer as createHttpServer,
   type Server as HttpServer,
@@ -43,6 +44,7 @@ import { getBearerToken, getHeader } from "./http-utils.js";
 import { resolveGatewayClientIp } from "./net.js";
 import { handleOpenAiHttpRequest } from "./openai-http.js";
 import { handleOpenResponsesHttpRequest } from "./openresponses-http.js";
+import { handleSecretStoreHttpRequest } from "./secret-store-http.js";
 import { handleToolsInvokeHttpRequest } from "./tools-invoke-http.js";
 
 type SubsystemLogger = ReturnType<typeof createSubsystemLogger>;
@@ -147,6 +149,7 @@ export function createHooksRequestHandler(
       return false;
     }
 
+    // Reject tokens in query params (security: prevents token leakage in logs/referers)
     if (url.searchParams.has("token")) {
       res.statusCode = 400;
       res.setHeader("Content-Type", "text/plain; charset=utf-8");
@@ -157,7 +160,14 @@ export function createHooksRequestHandler(
     }
 
     const token = extractHookToken(req);
-    if (!token || token !== hooksConfig.token) {
+    // Timing-safe token comparison to prevent timing attacks
+    let isValid = false;
+    if (token) {
+      const tokenBuf = Buffer.from(token);
+      const expectedBuf = Buffer.from(hooksConfig.token);
+      isValid = tokenBuf.length === expectedBuf.length && timingSafeEqual(tokenBuf, expectedBuf);
+    }
+    if (!isValid) {
       res.statusCode = 401;
       res.setHeader("Content-Type", "text/plain; charset=utf-8");
       res.end("Unauthorized");
@@ -329,6 +339,14 @@ export function createGatewayHttpServer(opts: {
         return;
       }
       if (await handleSlackHttpRequest(req, res)) {
+        return;
+      }
+      if (
+        await handleSecretStoreHttpRequest(req, res, {
+          auth: resolvedAuth,
+          trustedProxies,
+        })
+      ) {
         return;
       }
       if (handlePluginRequest && (await handlePluginRequest(req, res))) {

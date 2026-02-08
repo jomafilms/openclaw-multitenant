@@ -1,0 +1,33 @@
+{
+  "gateway": {
+    "mode": "local",
+    "port": 18789,
+    "bind": "lan",
+    "auth": {
+      "mode": "token",
+      "token": "REPLACE_WITH_SECURE_TOKEN"
+    }
+  },
+
+  "agents": {
+    "defaults": {
+      "workspace": "/root/.openclaw/workspace",
+      "model": "claude-sonnet-4-20250514",
+      "sandbox": {
+        "mode": "off"
+      }
+    },
+    "list": []
+  },
+
+  "channels": {
+    "telegram": {
+      "token": "REPLACE_WITH_TELEGRAM_BOT_TOKEN",
+      "dmPolicy": "pairing"
+    }
+  },
+
+  "session": {
+    "historyLimit": 100
+  }
+}

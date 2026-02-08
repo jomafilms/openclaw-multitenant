@@ -9,6 +9,7 @@ import { listSystemPresence, upsertPresence } from "../../infra/system-presence.
 import { isWebchatClient } from "../../utils/message-channel.js";
 import { isLoopbackAddress } from "../net.js";
 import { getHandshakeTimeoutMs } from "../server-constants.js";
+import { MAX_WEBSOCKET_CONNECTIONS } from "../server-constants.js";
 import { formatError } from "../server-utils.js";
 import { logWs } from "../ws-log.js";
 import { getHealthVersion, getPresenceVersion, incrementPresenceVersion } from "./health-state.js";
@@ -59,6 +60,16 @@ export function attachGatewayWsConnectionHandler(params: {
   } = params;
 
   wss.on("connection", (socket, upgradeReq) => {
+    // Enforce connection limit to prevent memory exhaustion from DoS attacks
+    if (clients.size >= MAX_WEBSOCKET_CONNECTIONS) {
+      logGateway.warn("Connection rejected: max connections reached", {
+        current: clients.size,
+        max: MAX_WEBSOCKET_CONNECTIONS,
+      });
+      socket.close(1013, "Server at capacity");
+      return;
+    }
+
     let client: GatewayWsClient | null = null;
     let closed = false;
     const openedAt = Date.now();

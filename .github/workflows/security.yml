@@ -1,0 +1,144 @@
+name: Security
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch: # Manual trigger only
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  security-audit:
+    name: Dependency Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+
+      - name: Verify lock file integrity
+        run: |
+          # Check that lock file exists and is not empty
+          if [ ! -s pnpm-lock.yaml ]; then
+            echo "ERROR: pnpm-lock.yaml is missing or empty"
+            exit 1
+          fi
+
+          # Verify lock file matches package.json
+          pnpm install --frozen-lockfile
+
+          # Check for uncommitted changes to lock file
+          if ! git diff --quiet pnpm-lock.yaml; then
+            echo "ERROR: pnpm-lock.yaml is out of sync with package.json"
+            git diff pnpm-lock.yaml
+            exit 1
+          fi
+
+      - name: Run security audit
+        run: pnpm audit --audit-level=high
+        continue-on-error: false
+
+      - name: Audit sub-packages
+        run: |
+          for dir in management-server agent-server relay-server user-ui admin-ui; do
+            if [ -f "$dir/package.json" ]; then
+              echo "Auditing $dir..."
+              cd $dir
+              npm audit --audit-level=high || true
+              cd ..
+            fi
+          done
+
+      - name: Generate audit SARIF
+        if: always()
+        run: |
+          pnpm audit --json > audit.json || true
+          node scripts/audit-to-sarif.js audit.json > audit.sarif || echo '{"version":"2.1.0","runs":[]}' > audit.sarif
+
+      - name: Upload audit SARIF to GitHub
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: audit.sarif
+          category: npm-audit
+        continue-on-error: true
+
+  semgrep:
+    name: Semgrep SAST
+    runs-on: ubuntu-latest
+    container:
+      image: semgrep/semgrep
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run Semgrep
+        run: |
+          semgrep scan \
+            --config auto \
+            --config p/security-audit \
+            --config p/secrets \
+            --config p/javascript \
+            --config p/typescript \
+            --sarif \
+            --output semgrep.sarif \
+            --error \
+            || true
+
+      - name: Upload Semgrep SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: semgrep.sarif
+          category: semgrep
+
+  codeql:
+    name: CodeQL Analysis
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
+          queries: security-extended
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: codeql
+
+  socket-security:
+    name: Socket.dev Security
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Socket Security Scan
+        uses: socketdev/socket-action@v1
+        with:
+          socket-api-key: ${{ secrets.SOCKET_API_KEY }}
+        continue-on-error: true

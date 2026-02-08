@@ -464,3 +464,47 @@ export async function updateLastRoute(params: {
     return next;
   });
 }
+
+// ============================================================================
+// Encryption Status Helpers
+// ============================================================================
+
+/**
+ * Get the IDs of all encrypted sessions in the store.
+ * @param storePath Path to the session store file
+ * @returns Array of session IDs that have `encrypted: true`
+ */
+export function getEncryptedSessionIds(storePath: string): string[] {
+  const store = loadSessionStore(storePath);
+  return Object.values(store)
+    .filter((entry): entry is SessionEntry => !!entry?.encrypted && !!entry?.sessionId)
+    .map((entry) => entry.sessionId);
+}
+
+/**
+ * Check if a specific session is encrypted.
+ * @param storePath Path to the session store file
+ * @param sessionKey The session key to check
+ * @returns true if the session exists and is encrypted
+ */
+export function isSessionEncrypted(storePath: string, sessionKey: string): boolean {
+  const store = loadSessionStore(storePath);
+  return store[sessionKey]?.encrypted === true;
+}
+
+/**
+ * Mark a session as encrypted in the store.
+ * @param params Store path and session key
+ * @returns The updated session entry or null if not found
+ */
+export async function markSessionEncrypted(params: {
+  storePath: string;
+  sessionKey: string;
+  encrypted: boolean;
+}): Promise<SessionEntry | null> {
+  return await updateSessionStoreEntry({
+    storePath: params.storePath,
+    sessionKey: params.sessionKey,
+    update: async (entry) => ({ encrypted: params.encrypted }),
+  });
+}

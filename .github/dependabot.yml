@@ -15,28 +15,192 @@ updates:
     directory: /
     schedule:
       interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: UTC
     cooldown:
       default-days: 7
     groups:
-      production:
-        dependency-type: production
+      # Auto-merge patch updates
+      patch-updates:
+        patterns:
+          - "*"
+        update-types:
+          - patch
+      # Group minor updates for review
+      minor-updates:
+        patterns:
+          - "*"
         update-types:
           - minor
-          - patch
-      development:
-        dependency-type: development
+    ignore:
+      # Packages we manually manage
+      - dependency-name: typescript
         update-types:
-          - minor
-          - patch
+          - version-update:semver-major
     open-pull-requests-limit: 10
+    labels:
+      - dependencies
+      - security
+    commit-message:
+      prefix: deps
+      include: scope
     registries:
       - npm-npmjs
+
+  # Sub-packages: management-server
+  - package-ecosystem: npm
+    directory: /management-server
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: UTC
+    cooldown:
+      default-days: 7
+    groups:
+      patch-updates:
+        patterns:
+          - "*"
+        update-types:
+          - patch
+      minor-updates:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - management-server
+    commit-message:
+      prefix: deps(management)
+      include: scope
+
+  # Sub-packages: agent-server
+  - package-ecosystem: npm
+    directory: /agent-server
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: UTC
+    cooldown:
+      default-days: 7
+    groups:
+      patch-updates:
+        patterns:
+          - "*"
+        update-types:
+          - patch
+      minor-updates:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - agent-server
+    commit-message:
+      prefix: deps(agent)
+      include: scope
+
+  # Sub-packages: relay-server
+  - package-ecosystem: npm
+    directory: /relay-server
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: UTC
+    cooldown:
+      default-days: 7
+    groups:
+      patch-updates:
+        patterns:
+          - "*"
+        update-types:
+          - patch
+      minor-updates:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - relay-server
+    commit-message:
+      prefix: deps(relay)
+      include: scope
+
+  # Sub-packages: user-ui
+  - package-ecosystem: npm
+    directory: /user-ui
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: UTC
+    cooldown:
+      default-days: 7
+    groups:
+      patch-updates:
+        patterns:
+          - "*"
+        update-types:
+          - patch
+      minor-updates:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - user-ui
+    commit-message:
+      prefix: deps(ui)
+      include: scope
+
+  # Sub-packages: admin-ui
+  - package-ecosystem: npm
+    directory: /admin-ui
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: UTC
+    cooldown:
+      default-days: 7
+    groups:
+      patch-updates:
+        patterns:
+          - "*"
+        update-types:
+          - patch
+      minor-updates:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - admin-ui
+    commit-message:
+      prefix: deps(admin)
+      include: scope
 
   # GitHub Actions
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: UTC
     cooldown:
       default-days: 7
     groups:
@@ -47,12 +211,21 @@ updates:
           - minor
           - patch
     open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - github-actions
+    commit-message:
+      prefix: deps(actions)
+      include: scope
 
   # Swift Package Manager - macOS app
   - package-ecosystem: swift
     directory: /apps/macos
     schedule:
       interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: UTC
     cooldown:
       default-days: 7
     groups:
@@ -63,12 +236,21 @@ updates:
           - minor
           - patch
     open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - macos
+    commit-message:
+      prefix: deps(macos)
+      include: scope
 
   # Swift Package Manager - shared MoltbotKit
   - package-ecosystem: swift
     directory: /apps/shared/MoltbotKit
     schedule:
       interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: UTC
     cooldown:
       default-days: 7
     groups:
@@ -79,12 +261,21 @@ updates:
           - minor
           - patch
     open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - swift
+    commit-message:
+      prefix: deps(swift)
+      include: scope
 
   # Swift Package Manager - Swabble
   - package-ecosystem: swift
     directory: /Swabble
     schedule:
       interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: UTC
     cooldown:
       default-days: 7
     groups:
@@ -95,12 +286,21 @@ updates:
           - minor
           - patch
     open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - swabble
+    commit-message:
+      prefix: deps(swabble)
+      include: scope
 
   # Gradle - Android app
   - package-ecosystem: gradle
     directory: /apps/android
     schedule:
       interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: UTC
     cooldown:
       default-days: 7
     groups:
@@ -111,3 +311,9 @@ updates:
           - minor
           - patch
     open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - android
+    commit-message:
+      prefix: deps(android)
+      include: scope

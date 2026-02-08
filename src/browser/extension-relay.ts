@@ -1,7 +1,7 @@
 import type { IncomingMessage } from "node:http";
 import type { AddressInfo } from "node:net";
 import type { Duplex } from "node:stream";
-import { randomBytes } from "node:crypto";
+import { randomBytes, timingSafeEqual } from "node:crypto";
 import { createServer } from "node:http";
 import WebSocket, { WebSocketServer } from "ws";
 import { rawDataToString } from "../infra/ws.js";
@@ -77,6 +77,15 @@ type ConnectedTarget = {
 };
 
 const RELAY_AUTH_HEADER = "x-openclaw-relay-token";
+
+// Timing-safe token comparison to prevent timing attacks
+function isTokenValid(token: string | undefined, expected: string): boolean {
+  if (!token) return false;
+  const tokenBuf = Buffer.from(token);
+  const expectedBuf = Buffer.from(expected);
+  if (tokenBuf.length !== expectedBuf.length) return false;
+  return timingSafeEqual(tokenBuf, expectedBuf);
+}
 
 function headerValue(value: string | string[] | undefined): string | undefined {
   if (!value) {
@@ -365,7 +374,7 @@ export async function ensureChromeExtensionRelayServer(opts: {
 
     if (path.startsWith("/json")) {
       const token = getHeader(req, RELAY_AUTH_HEADER);
-      if (!token || token !== relayAuthToken) {
+      if (!isTokenValid(token, relayAuthToken)) {
         res.writeHead(401);
         res.end("Unauthorized");
         return;
@@ -511,7 +520,7 @@ export async function ensureChromeExtensionRelayServer(opts: {
 
     if (pathname === "/cdp") {
       const token = getHeader(req, RELAY_AUTH_HEADER);
-      if (!token || token !== relayAuthToken) {
+      if (!isTokenValid(token, relayAuthToken)) {
         rejectUpgrade(socket, 401, "Unauthorized");
         return;
       }

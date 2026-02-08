@@ -1,0 +1,16 @@
+# Replace YOUR_DOMAIN with your actual domain or droplet IP
+# For IP-only (no HTTPS): use :80 instead
+
+{$DOMAIN:localhost} {
+    reverse_proxy openclaw:18789
+
+    # Enable compression
+    encode gzip
+
+    # Security headers
+    header {
+        X-Content-Type-Options nosniff
+        X-Frame-Options DENY
+        Referrer-Policy strict-origin-when-cross-origin
+    }
+}

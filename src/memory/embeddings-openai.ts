@@ -61,6 +61,17 @@ export async function createOpenAiEmbeddingProvider(
   };
 }
 
+/**
+ * Resolve an API key for embeddings.
+ * Checks in order:
+ * 1. Explicit remote.apiKey from config
+ * 2. EMBEDDINGS_API_KEY env var (dedicated embeddings key)
+ * 3. Standard provider auth (OPENAI_API_KEY, profiles, etc.)
+ */
+function resolveEmbeddingsApiKey(): string | undefined {
+  return process.env.EMBEDDINGS_API_KEY?.trim() || undefined;
+}
+
 export async function resolveOpenAiEmbeddingClient(
   options: EmbeddingProviderOptions,
 ): Promise<OpenAiEmbeddingClient> {
@@ -68,16 +79,21 @@ export async function resolveOpenAiEmbeddingClient(
   const remoteApiKey = remote?.apiKey?.trim();
   const remoteBaseUrl = remote?.baseUrl?.trim();
 
+  // Check for dedicated embeddings API key before falling back to provider auth
+  const embeddingsKey = resolveEmbeddingsApiKey();
+
   const apiKey = remoteApiKey
     ? remoteApiKey
-    : requireApiKey(
-        await resolveApiKeyForProvider({
-          provider: "openai",
-          cfg: options.config,
-          agentDir: options.agentDir,
-        }),
-        "openai",
-      );
+    : embeddingsKey
+      ? embeddingsKey
+      : requireApiKey(
+          await resolveApiKeyForProvider({
+            provider: "openai",
+            cfg: options.config,
+            agentDir: options.agentDir,
+          }),
+          "openai",
+        );
 
   const providerConfig = options.config.models?.providers?.openai;
   const baseUrl = remoteBaseUrl || providerConfig?.baseUrl?.trim() || DEFAULT_OPENAI_BASE_URL;

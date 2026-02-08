@@ -66,6 +66,12 @@ importers:
       '@napi-rs/canvas':
         specifier: ^0.1.89
         version: 0.1.89
+      '@noble/ciphers':
+        specifier: ^2.1.1
+        version: 2.1.1
+      '@noble/hashes':
+        specifier: ^2.0.1
+        version: 2.0.1
       '@sinclair/typebox':
         specifier: 0.34.48
         version: 0.34.48

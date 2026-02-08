@@ -263,6 +263,48 @@ describe("embedding provider auto selection", () => {
     const payload = JSON.parse(String(init?.body ?? "{}")) as { model?: string };
     expect(payload.model).toBe("text-embedding-3-small");
   });
+
+  it("uses EMBEDDINGS_API_KEY when no provider-specific key is available", async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ data: [{ embedding: [1, 2, 3] }] }),
+    })) as unknown as typeof fetch;
+    vi.stubGlobal("fetch", fetchMock);
+
+    // Set EMBEDDINGS_API_KEY env var
+    const originalEnv = process.env.EMBEDDINGS_API_KEY;
+    process.env.EMBEDDINGS_API_KEY = "embeddings-api-key";
+
+    try {
+      const { createEmbeddingProvider } = await import("./embeddings.js");
+      const authModule = await import("../agents/model-auth.js");
+      // Mock that no provider-specific key is available
+      vi.mocked(authModule.resolveApiKeyForProvider).mockImplementation(async ({ provider }) => {
+        throw new Error(`No API key found for provider "${provider}".`);
+      });
+
+      const result = await createEmbeddingProvider({
+        config: {} as never,
+        provider: "openai",
+        model: "text-embedding-3-small",
+        fallback: "none",
+      });
+
+      expect(result.provider.id).toBe("openai");
+      await result.provider.embedQuery("hello");
+      const headers = (fetchMock.mock.calls[0]?.[1]?.headers as Record<string, string>) ?? {};
+      expect(headers.Authorization).toBe("Bearer embeddings-api-key");
+      // Should not call resolveApiKeyForProvider since EMBEDDINGS_API_KEY is set
+      expect(authModule.resolveApiKeyForProvider).not.toHaveBeenCalled();
+    } finally {
+      if (originalEnv === undefined) {
+        delete process.env.EMBEDDINGS_API_KEY;
+      } else {
+        process.env.EMBEDDINGS_API_KEY = originalEnv;
+      }
+    }
+  });
 });
 
 describe("embedding provider local fallback", () => {

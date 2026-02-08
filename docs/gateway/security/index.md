@@ -110,6 +110,29 @@ This is required for session continuity and (optionally) session memory indexing
 boundary and lock down permissions on `~/.openclaw` (see the audit section below). If you need
 stronger isolation between agents, run them under separate OS users or separate hosts.
 
+## Encrypted Session Storage (Zero-Knowledge)
+
+OCMT supports **end-to-end encrypted session storage** for containers, ensuring conversations are protected at rest with a zero-knowledge model (similar to 1Password). Key features:
+
+- **Password never leaves browser**: Key derivation (Argon2id, 64MB memory) happens client-side
+- **Direct browser-to-container unlock**: Management server never sees passwords or derived keys
+- **XChaCha20-Poly1305 encryption**: 24-byte nonces eliminate reuse risk
+- **30-minute auto-lock**: Keys cleared from memory on timeout
+- **Biometric unlock**: FaceID/TouchID via WebAuthn for registered devices
+- **Recovery options**: BIP39 12-word phrase, social recovery (Shamir's), hardware backup keys
+
+### Trust Model
+
+| Actor                        | Can Read Sessions?      |
+| ---------------------------- | ----------------------- |
+| User (with password)         | ✅ Yes                  |
+| Platform admin (SSH to host) | ❌ No (encrypted blobs) |
+| Container (vault locked)     | ❌ No                   |
+| Container (vault unlocked)   | ⚠️ Yes (key in memory)  |
+| Management server            | ❌ Never                |
+
+For full details, see [Encrypted Sessions Security](/security/encrypted-sessions).
+
 ## Node execution (system.run)
 
 If a macOS node is paired, the Gateway can invoke `system.run` on that node. This is **remote code execution** on the Mac:

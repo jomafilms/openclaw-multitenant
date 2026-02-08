@@ -1,3 +1,5 @@
+> **🐾 OpenPaw / OCMT Fork**: This is a multi-tenant deployment of OpenClaw with container isolation, encrypted vaults, and team features. See [OCMT-README.md](OCMT-README.md) for the multi-tenant layer documentation.
+
 # 🦞 OpenClaw — Personal AI Assistant
 
 <p align="center">

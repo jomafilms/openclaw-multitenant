@@ -1,4 +1,5 @@
 import type { Command } from "commander";
+import { confirm, isCancel } from "@clack/prompts";
 import fs from "node:fs";
 import path from "node:path";
 import type { OpenClawConfig } from "../config/config.js";
@@ -312,7 +313,8 @@ export function registerPluginsCli(program: Command) {
     .description("Install a plugin (path, archive, or npm spec)")
     .argument("<path-or-spec>", "Path (.ts/.js/.zip/.tgz/.tar.gz) or an npm package spec")
     .option("-l, --link", "Link a local path instead of copying", false)
-    .action(async (raw: string, opts: { link?: boolean }) => {
+    .option("-y, --yes", "Skip security confirmation for external plugins", false)
+    .action(async (raw: string, opts: { link?: boolean; yes?: boolean }) => {
       const resolved = resolveUserPath(raw);
       const cfg = loadConfig();
 
@@ -421,6 +423,38 @@ export function registerPluginsCli(program: Command) {
       if (looksLikePath) {
         defaultRuntime.error(`Path not found: ${resolved}`);
         process.exit(1);
+      }
+
+      // Security warning for external npm packages
+      if (!opts.yes) {
+        defaultRuntime.log("");
+        defaultRuntime.log(theme.warn("Security Warning:"));
+        defaultRuntime.log(
+          `You are about to install an external plugin from npm: ${theme.heading(raw)}`,
+        );
+        defaultRuntime.log("");
+        defaultRuntime.log("External plugins can:");
+        defaultRuntime.log("  - Execute arbitrary code on your system");
+        defaultRuntime.log("  - Access your configuration and secrets");
+        defaultRuntime.log("  - Make network requests on your behalf");
+        defaultRuntime.log("");
+        defaultRuntime.log(theme.muted("Only install plugins from sources you trust."));
+        defaultRuntime.log("");
+
+        if (process.stdin.isTTY) {
+          const ok = await confirm({
+            message: "Do you want to continue with the installation?",
+          });
+          if (isCancel(ok) || !ok) {
+            defaultRuntime.log("Installation cancelled.");
+            process.exit(0);
+          }
+        } else {
+          defaultRuntime.error(
+            "Cannot confirm in non-interactive mode. Use --yes to skip this check.",
+          );
+          process.exit(1);
+        }
       }
 
       const result = await installPluginFromNpmSpec({

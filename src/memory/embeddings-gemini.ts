@@ -34,6 +34,17 @@ function resolveRemoteApiKey(remoteApiKey?: string): string | undefined {
   return trimmed;
 }
 
+/**
+ * Resolve an API key for embeddings.
+ * Checks in order:
+ * 1. Explicit remote.apiKey from config
+ * 2. EMBEDDINGS_API_KEY env var (dedicated embeddings key)
+ * 3. Standard provider auth (GEMINI_API_KEY, profiles, etc.)
+ */
+function resolveEmbeddingsApiKey(): string | undefined {
+  return process.env.EMBEDDINGS_API_KEY?.trim() || undefined;
+}
+
 function normalizeGeminiModel(model: string): string {
   const trimmed = model.trim();
   if (!trimmed) {
@@ -131,16 +142,21 @@ export async function resolveGeminiEmbeddingClient(
   const remoteApiKey = resolveRemoteApiKey(remote?.apiKey);
   const remoteBaseUrl = remote?.baseUrl?.trim();
 
+  // Check for dedicated embeddings API key before falling back to provider auth
+  const embeddingsKey = resolveEmbeddingsApiKey();
+
   const apiKey = remoteApiKey
     ? remoteApiKey
-    : requireApiKey(
-        await resolveApiKeyForProvider({
-          provider: "google",
-          cfg: options.config,
-          agentDir: options.agentDir,
-        }),
-        "google",
-      );
+    : embeddingsKey
+      ? embeddingsKey
+      : requireApiKey(
+          await resolveApiKeyForProvider({
+            provider: "google",
+            cfg: options.config,
+            agentDir: options.agentDir,
+          }),
+          "google",
+        );
 
   const providerConfig = options.config.models?.providers?.google;
   const rawBaseUrl = remoteBaseUrl || providerConfig?.baseUrl?.trim() || DEFAULT_GEMINI_BASE_URL;

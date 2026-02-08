@@ -116,7 +116,10 @@ export async function syncSessionFiles(params: {
           `DELETE FROM ${params.vectorTable} WHERE id IN (SELECT id FROM chunks WHERE path = ? AND source = ?)`,
         )
         .run(stale.path, "sessions");
-    } catch {}
+    } catch (err) {
+      // Vector table may not exist (optional feature) - log for debugging
+      log.debug("Failed to delete from vector table (may not exist)", { error: String(err) });
+    }
     params.db
       .prepare(`DELETE FROM chunks WHERE path = ? AND source = ?`)
       .run(stale.path, "sessions");
@@ -125,7 +128,10 @@ export async function syncSessionFiles(params: {
         params.db
           .prepare(`DELETE FROM ${params.ftsTable} WHERE path = ? AND source = ? AND model = ?`)
           .run(stale.path, "sessions", params.model);
-      } catch {}
+      } catch (err) {
+        // FTS table may not exist (optional feature) - log for debugging
+        log.debug("Failed to delete from FTS table (may not exist)", { error: String(err) });
+      }
     }
   }
 }

@@ -180,9 +180,25 @@ export async function createEmbeddingProvider(
 
     const details = [...missingKeyErrors, localError].filter(Boolean) as string[];
     if (details.length > 0) {
-      throw new Error(details.join("\n\n"));
+      throw new Error(
+        details.join("\n\n") +
+          "\n\nTo enable memory search, set one of:\n" +
+          "  - EMBEDDINGS_API_KEY (dedicated key for embeddings)\n" +
+          "  - OPENAI_API_KEY (for OpenAI embeddings)\n" +
+          "  - GEMINI_API_KEY (for Gemini embeddings)\n" +
+          "  - memorySearch.remote.apiKey in config\n" +
+          'Or use local embeddings: memorySearch.provider = "local"',
+      );
     }
-    throw new Error("No embeddings provider available.");
+    throw new Error(
+      "No embeddings provider available.\n\n" +
+        "To enable memory search, set one of:\n" +
+        "  - EMBEDDINGS_API_KEY (dedicated key for embeddings)\n" +
+        "  - OPENAI_API_KEY (for OpenAI embeddings)\n" +
+        "  - GEMINI_API_KEY (for Gemini embeddings)\n" +
+        "  - memorySearch.remote.apiKey in config\n" +
+        'Or use local embeddings: memorySearch.provider = "local"',
+    );
   }
 
   try {

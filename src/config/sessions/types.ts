@@ -33,6 +33,8 @@ export type SessionEntry = {
   sessionId: string;
   updatedAt: number;
   sessionFile?: string;
+  /** Whether this session's transcript is encrypted at rest. */
+  encrypted?: boolean;
   /** Parent session key that spawned this session (used for sandbox session-tool scoping). */
   spawnedBy?: string;
   systemSent?: boolean;

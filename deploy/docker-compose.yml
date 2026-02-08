@@ -1,0 +1,78 @@
+version: "3.8"
+
+services:
+  openclaw:
+    image: node:22-slim
+    container_name: ocmt-gateway
+    working_dir: /app
+    volumes:
+      - openclaw-data:/home/node/.openclaw
+      - ./openclaw.json5:/home/node/.openclaw/openclaw.json:ro
+    environment:
+      - OPENCLAW_CONFIG_PATH=/home/node/.openclaw/openclaw.json
+      - OPENCLAW_STATE_DIR=/home/node/.openclaw
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+    ports:
+      - "18789:18789"
+    command: >
+      bash -c "
+        npm install -g openclaw@latest &&
+        openclaw gateway --bind lan --port 18789 --verbose
+      "
+    restart: unless-stopped
+    user: "1000:1000"
+    # Resource limits to prevent runaway processes
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: "2.0"
+        reservations:
+          memory: 512M
+          cpus: "0.5"
+    # Logging configuration to prevent disk exhaustion
+    logging:
+      driver: json-file
+      options:
+        max-size: "100m"
+        max-file: "3"
+    # Health check for monitoring
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:18789/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: ocmt-caddy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    restart: unless-stopped
+    depends_on:
+      - openclaw
+    # Resource limits for reverse proxy
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
+        reservations:
+          memory: 64M
+          cpus: "0.1"
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "3"
+
+volumes:
+  openclaw-data:
+  caddy-data:
+  caddy-config:

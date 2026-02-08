@@ -16,6 +16,21 @@ services:
       - "${OPENCLAW_BRIDGE_PORT:-18790}:18790"
     init: true
     restart: unless-stopped
+    # Resource limits to prevent runaway processes
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: "2.0"
+        reservations:
+          memory: 512M
+          cpus: "0.5"
+    # Logging configuration to prevent disk exhaustion
+    logging:
+      driver: json-file
+      options:
+        max-size: "100m"
+        max-file: "3"
     command:
       [
         "node",
@@ -43,4 +58,13 @@ services:
     stdin_open: true
     tty: true
     init: true
+    # Resource limits for CLI operations
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: "1.0"
+        reservations:
+          memory: 256M
+          cpus: "0.25"
     entrypoint: ["node", "dist/index.js"]

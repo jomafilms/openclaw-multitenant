@@ -39,6 +39,11 @@ RUN chown -R node:node /app
 # This reduces the attack surface by preventing container escape via root privileges
 USER node
 
+# Health check - verify gateway process is running and responsive
+# Uses port 18789 (default gateway port) on loopback
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD node -e "require('http').get('http://127.0.0.1:18789/', (r) => process.exit(r.statusCode < 500 ? 0 : 1)).on('error', () => process.exit(1))"
+
 # Start gateway server with default config.
 # Binds to loopback (127.0.0.1) by default for security.
 #
