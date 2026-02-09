@@ -91,6 +91,13 @@ OCMT extends OpenClaw with:
 - [ ] GDPR compliance features - planned
 - [ ] Data residency controls - planned
 
+### Privacy Hardening
+
+- [ ] Configurable audit log retention per tenant
+- [ ] Option to disable platform-side audit logging
+- [ ] Encrypt approval request data with user's vault key
+- [ ] Export-only logging (logs go to tenant's SIEM, not stored on platform)
+
 ## Phase 4: Enterprise Features (Future)
 
 - [ ] Advanced RBAC (owner, admin, member, observer, custom roles)

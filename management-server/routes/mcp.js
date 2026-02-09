@@ -12,8 +12,10 @@ const router = Router();
  */
 router.post("/", requireContainerAuth, async (req, res) => {
   try {
-    // Debug logging for MCP calls
-    console.log("[mcp] Request body:", JSON.stringify(req.body).slice(0, 500));
+    // Debug logging for MCP calls (method only - never log params to protect user privacy)
+    if (process.env.DEBUG_MCP) {
+      console.log("[mcp] method:", req.body?.method);
+    }
 
     const { method, params, id } = req.body;
     const userId = req.userId;

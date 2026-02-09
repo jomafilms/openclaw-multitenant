@@ -86,6 +86,37 @@ Dedicated encrypted storage for team/organization secrets with threshold unlock.
 
 See [MESH-SECURITY-ROADMAP.md](./docs/MESH-SECURITY-ROADMAP.md) for full implementation details.
 
+## Privacy & Logging
+
+### What the Platform CAN See (Metadata)
+
+- Login times and IP addresses
+- Vault lock/unlock events (not contents)
+- Which integrations are connected (e.g., "Google Calendar")
+- Group membership changes
+- Session activity
+- MFA events
+
+### What the Platform CANNOT See (Zero-Knowledge)
+
+- Vault contents (encrypted with user's password)
+- Conversation content (stays in isolated container)
+- Actual credentials/API keys (encrypted in vault)
+- What the agent does inside the container
+
+### Hardening Options
+
+For maximum privacy, operators can:
+
+1. **Disable audit logging** per tenant (trades security visibility for privacy)
+2. **Reduce log retention** (7 days vs 90 days)
+3. **Export-only logging** (logs go to tenant's own system)
+4. **Self-host** with no external log aggregation
+
+### Approval Request Data
+
+The `capability_approvals` table stores `reason` and `agentContext` for human-in-the-loop workflows. These may contain conversation context. Future enhancement: encrypt these fields with the user's vault key.
+
 ## Reporting OCMT-Specific Issues
 
 For security issues specific to the OCMT layer (management-server, agent-server, relay-server, admin-ui, user-ui, group-vault), please report via GitHub Security Advisories.
