@@ -2,7 +2,7 @@ import { LitElement, html, css } from "lit";
 import { customElement, property, state } from "lit/decorators.js";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { api, User, ChatMessage, VaultStatus } from "../lib/api.js";
-import { GatewayClient, ChatEvent } from "../lib/gateway-client.js";
+import { GatewayClient, ChatEvent, WakeStatus } from "../lib/gateway-client.js";
 import { toSanitizedMarkdownHtml } from "../lib/markdown.js";
 
 @customElement("ocmt-dashboard")
@@ -59,6 +59,63 @@ export class DashboardPage extends LitElement {
 
     .status-dot.error {
       background: #ef4444;
+    }
+
+    .status-dot.provisioning {
+      background: #a855f7;
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+
+    .status-dot.waking {
+      background: #eab308;
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% {
+        opacity: 1;
+        transform: scale(1);
+      }
+      50% {
+        opacity: 0.6;
+        transform: scale(1.1);
+      }
+    }
+
+    .connection-status-detail {
+      font-size: 0.75rem;
+      color: #666;
+      margin-top: 2px;
+    }
+
+    .progress-bar {
+      width: 100px;
+      height: 3px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 2px;
+      overflow: hidden;
+      margin-left: 8px;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #a855f7, #4f46e5);
+      animation: progress-indeterminate 1.5s ease-in-out infinite;
+    }
+
+    @keyframes progress-indeterminate {
+      0% {
+        transform: translateX(-100%);
+        width: 50%;
+      }
+      50% {
+        transform: translateX(50%);
+        width: 50%;
+      }
+      100% {
+        transform: translateX(200%);
+        width: 50%;
+      }
     }
 
     .messages {
@@ -433,6 +490,13 @@ export class DashboardPage extends LitElement {
   @state()
   private vaultCheckComplete = false;
 
+  @state()
+  private wakeStatus: WakeStatus = {
+    phase: 'idle',
+    message: '',
+    isProvisioning: false,
+  };
+
   private gateway: GatewayClient | null = null;
   private messagesContainer: HTMLElement | null = null;
   private currentRunId: string | null = null;
@@ -529,6 +593,7 @@ export class DashboardPage extends LitElement {
       onConnected: () => {
         this.connected = true;
         this.connectionError = "";
+        this.wakeStatus = { phase: 'ready', message: '', isProvisioning: false };
         console.log("[dashboard] gateway connected");
       },
       onDisconnected: (reason) => {
@@ -539,10 +604,15 @@ export class DashboardPage extends LitElement {
         } else {
           this.connectionError = reason || "Disconnected";
         }
+        this.wakeStatus = { phase: 'idle', message: '', isProvisioning: false };
       },
       onChatEvent: (event) => this.handleChatEvent(event),
       onError: (error) => {
         this.connectionError = error;
+        this.wakeStatus = { phase: 'error', message: error, isProvisioning: false };
+      },
+      onWakeStatus: (status) => {
+        this.wakeStatus = status;
       },
     });
 
@@ -728,10 +798,7 @@ export class DashboardPage extends LitElement {
       <div class="chat-container">
         <div class="chat-header">
           <h2>Chat with your AI</h2>
-          <div class="connection-status">
-            <div class="status-dot ${this.connected ? "connected" : this.connectionError ? "error" : ""}"></div>
-            ${this.connected ? "Connected" : this.connectionError || "Connecting..."}
-          </div>
+          ${this.renderConnectionStatus()}
         </div>
 
         <div class="messages">
@@ -775,6 +842,75 @@ export class DashboardPage extends LitElement {
             </button>
           </div>
         </div>
+      </div>
+    `;
+  }
+
+  private renderConnectionStatus() {
+    // Connected state
+    if (this.connected) {
+      return html`
+        <div class="connection-status">
+          <div class="status-dot connected"></div>
+          Connected
+        </div>
+      `;
+    }
+
+    // Error state
+    if (this.connectionError) {
+      return html`
+        <div class="connection-status">
+          <div class="status-dot error"></div>
+          ${this.connectionError}
+        </div>
+      `;
+    }
+
+    // Provisioning state (first-time setup)
+    if (this.wakeStatus.isProvisioning) {
+      return html`
+        <div class="connection-status">
+          <div class="status-dot provisioning"></div>
+          <div>
+            <div>Setting up your environment...</div>
+            <div class="connection-status-detail">This may take a minute or two</div>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-bar-fill"></div>
+          </div>
+        </div>
+      `;
+    }
+
+    // Waking from hibernation
+    if (this.wakeStatus.phase === 'waking') {
+      return html`
+        <div class="connection-status">
+          <div class="status-dot waking"></div>
+          <div>
+            <div>Waking up container...</div>
+            <div class="connection-status-detail">Just a moment</div>
+          </div>
+        </div>
+      `;
+    }
+
+    // Connecting state
+    if (this.wakeStatus.phase === 'connecting') {
+      return html`
+        <div class="connection-status">
+          <div class="status-dot"></div>
+          Connecting...
+        </div>
+      `;
+    }
+
+    // Default connecting state
+    return html`
+      <div class="connection-status">
+        <div class="status-dot"></div>
+        Connecting...
       </div>
     `;
   }

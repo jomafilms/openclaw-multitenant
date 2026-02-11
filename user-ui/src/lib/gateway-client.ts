@@ -17,6 +17,13 @@ export interface ChatEvent {
   errorMessage?: string;
 }
 
+export interface WakeStatus {
+  phase: 'idle' | 'waking' | 'connecting' | 'ready' | 'error';
+  message: string;
+  isProvisioning: boolean;
+  previousState?: string;
+}
+
 export interface GatewayClientOptions {
   host: string;
   port: number;
@@ -26,6 +33,7 @@ export interface GatewayClientOptions {
   onChatEvent?: (event: ChatEvent) => void;
   onError?: (error: string) => void;
   onWaking?: (waking: boolean, message?: string) => void;
+  onWakeStatus?: (status: WakeStatus) => void;
 }
 
 type Pending = {
@@ -54,13 +62,45 @@ export class GatewayClient {
     // Wake container from hibernation before connecting
     try {
       console.log('[gateway] waking container...');
+
+      // Determine initial message based on context
       this.opts.onWaking?.(true, 'Waking up container...');
+      this.opts.onWakeStatus?.({
+        phase: 'waking',
+        message: 'Checking container status...',
+        isProvisioning: false,
+      });
 
       const result = await api.wakeContainer();
-      console.log('[gateway] container awake in', result.wakeTime, 'ms');
+      console.log('[gateway] container awake in', result.wakeTime, 'ms, previousState:', result.previousState, 'isFirstWake:', result.isFirstWake);
 
-      // Show appropriate message based on wake time
-      if (result.wakeTime > 0) {
+      // Provide contextual feedback based on wake result
+      if (result.isFirstWake) {
+        // First time provisioning
+        this.opts.onWakeStatus?.({
+          phase: 'waking',
+          message: 'Setting up your environment...',
+          isProvisioning: true,
+          previousState: result.previousState,
+        });
+        this.opts.onWaking?.(true, 'Setting up your environment...');
+      } else if (result.previousState === 'paused' || result.previousState === 'stopped') {
+        // Waking from hibernation
+        this.opts.onWakeStatus?.({
+          phase: 'waking',
+          message: 'Waking up container...',
+          isProvisioning: false,
+          previousState: result.previousState,
+        });
+        this.opts.onWaking?.(true, 'Waking up container...');
+      } else if (result.wakeTime > 0) {
+        // Normal wake with some delay
+        this.opts.onWakeStatus?.({
+          phase: 'waking',
+          message: `Container woke in ${Math.round(result.wakeTime / 1000)}s`,
+          isProvisioning: false,
+          previousState: result.previousState,
+        });
         this.opts.onWaking?.(true, `Container woke in ${Math.round(result.wakeTime / 1000)}s`);
       }
 
@@ -69,9 +109,20 @@ export class GatewayClient {
         await new Promise(r => setTimeout(r, 500));
       }
 
+      // Transition to connecting phase
+      this.opts.onWakeStatus?.({
+        phase: 'connecting',
+        message: 'Connecting...',
+        isProvisioning: false,
+      });
       this.opts.onWaking?.(false);
     } catch (err) {
       console.warn('[gateway] wake failed, will retry on reconnect:', err);
+      this.opts.onWakeStatus?.({
+        phase: 'error',
+        message: 'Wake failed, retrying...',
+        isProvisioning: false,
+      });
       this.opts.onWaking?.(false, 'Wake failed, retrying...');
     }
     this.connect();

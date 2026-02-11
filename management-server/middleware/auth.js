@@ -1,5 +1,5 @@
 import crypto from "crypto";
-import { sessions, users, magicLinks, audit } from "../db/index.js";
+import { sessions, users, magicLinks, audit, userAllowlist } from "../db/index.js";
 import { generatePermanentToken, encryptGatewayToken } from "../lib/gateway-tokens.js";
 import { getClientIp } from "../lib/rate-limit.js";
 
@@ -160,8 +160,13 @@ export async function verifyMagicLink(token, ipAddress, userAgent = null) {
 
   // Find or create user
   let user = await users.findByEmail(link.email);
+  let isNewUser = false;
 
   if (!user) {
+    // Check allowlist to determine initial status
+    const allowlistResult = await userAllowlist.checkEmail(link.email);
+    const initialStatus = allowlistResult.allowed ? "pending" : "pending_approval";
+
     // Create new user with encrypted gateway token
     const rawToken = generatePermanentToken();
     const encryptedToken = encryptGatewayToken(rawToken);
@@ -169,9 +174,15 @@ export async function verifyMagicLink(token, ipAddress, userAgent = null) {
       name: link.email.split("@")[0], // Use email prefix as initial name
       email: link.email,
       gatewayToken: encryptedToken,
+      status: initialStatus,
     });
+    isNewUser = true;
 
-    await audit.log(user.id, "user.created", { email: link.email }, ipAddress);
+    await audit.log(user.id, "user.created", {
+      email: link.email,
+      allowlistStatus: allowlistResult.reason,
+      initialStatus,
+    }, ipAddress);
   }
 
   // Create session with metadata
@@ -189,6 +200,8 @@ export async function verifyMagicLink(token, ipAddress, userAgent = null) {
     user,
     sessionToken,
     sessionExpiresAt,
+    isNewUser,
+    pendingApproval: user.status === "pending_approval",
   };
 }
 

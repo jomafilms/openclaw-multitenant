@@ -1036,6 +1036,35 @@ const migrations = [
   )`,
 
   `CREATE INDEX IF NOT EXISTS idx_export_usage_tenant_window ON audit_export_usage(tenant_id, window_start DESC)`,
+
+  // ============================================================
+  // USER ALLOWLIST (Email/Domain allowlist for auto-provisioning)
+  // ============================================================
+
+  // User allowlist table - stores emails and domains for auto-approval
+  `CREATE TABLE IF NOT EXISTS user_allowlist (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    entry_type VARCHAR(20) NOT NULL CHECK (entry_type IN ('email', 'domain')),
+    value VARCHAR(255) NOT NULL,
+    description TEXT,
+    created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMP DEFAULT NOW(),
+    expires_at TIMESTAMP,
+    enabled BOOLEAN DEFAULT true,
+    UNIQUE(entry_type, value)
+  )`,
+
+  // User allowlist indexes
+  `CREATE INDEX IF NOT EXISTS idx_user_allowlist_type_value ON user_allowlist(entry_type, value)`,
+  `CREATE INDEX IF NOT EXISTS idx_user_allowlist_enabled ON user_allowlist(enabled) WHERE enabled = true`,
+
+  // Allowlist settings table - stores feature toggle and config
+  `CREATE TABLE IF NOT EXISTS user_allowlist_settings (
+    key VARCHAR(100) PRIMARY KEY,
+    value JSONB NOT NULL,
+    updated_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    updated_at TIMESTAMP DEFAULT NOW()
+  )`,
 ];
 
 async function migrate() {

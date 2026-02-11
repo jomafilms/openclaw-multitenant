@@ -166,3 +166,6 @@ export {
   sanitizeEmailHtml,
   validateBranding,
 } from "./tenant-branding.js";
+
+// User allowlist (email/domain allowlist for auto-provisioning)
+export { userAllowlist } from "./allowlist.js";

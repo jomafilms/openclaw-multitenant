@@ -414,6 +414,29 @@
   color: var(--accent);
 }
 
+/* Activity indicator for background streaming */
+.nav-item__activity {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 8px;
+  height: 8px;
+  background: var(--accent);
+  border-radius: 50%;
+  animation: nav-activity-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes nav-activity-pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(0.8);
+  }
+}
+
 /* ===========================================
    Content Area
    =========================================== */

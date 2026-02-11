@@ -227,6 +227,11 @@ router.post("/:userId/wake", async (req, res) => {
     return res.status(404).json({ error: "Container not found" });
   }
 
+  // Capture previous state for UI feedback
+  const previousState = info.hibernationState;
+  const createdAt = info.createdAt;
+  const isFirstWake = !info.lastActivity || (createdAt && (Date.now() - new Date(createdAt).getTime()) < 60000);
+
   try {
     const result = await wakeContainerWithQueue(userId, { reason, timeout });
     res.json({
@@ -235,17 +240,24 @@ router.post("/:userId/wake", async (req, res) => {
       hibernationState: containers.get(userId)?.hibernationState,
       queued: result.queued || false,
       reason: result.reason,
+      // Additional info for UI feedback
+      previousState,
+      isFirstWake,
     });
   } catch (err) {
     if (err.message === "Wake timeout") {
       return res.status(504).json({
         error: "Wake timeout",
         message: "Container took too long to wake",
+        previousState,
+        isFirstWake,
       });
     }
     res.status(503).json({
       error: "Failed to wake container",
       message: err.message,
+      previousState,
+      isFirstWake,
     });
   }
 });

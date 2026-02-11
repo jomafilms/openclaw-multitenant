@@ -229,7 +229,12 @@ export async function refreshActiveTab(host: SettingsHost) {
     await loadExecApprovals(host as unknown as OpenClawApp);
   }
   if (host.tab === "chat") {
-    await refreshChat(host as unknown as Parameters<typeof refreshChat>[0]);
+    // Skip history reload if actively streaming (chatRunId is set)
+    // This preserves the streaming state when user returns to the chat tab
+    const isStreaming = Boolean((host as unknown as { chatRunId: string | null }).chatRunId);
+    if (!isStreaming) {
+      await refreshChat(host as unknown as Parameters<typeof refreshChat>[0]);
+    }
     scheduleChatScroll(
       host as unknown as Parameters<typeof scheduleChatScroll>[0],
       !host.chatHasAutoScrolled,

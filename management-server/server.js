@@ -18,6 +18,7 @@ import {
   httpsRedirect,
 } from "./middleware/security-headers.js";
 import adminSecurityRouter from "./routes/admin-security.js";
+import adminUserAllowlistRouter from "./routes/admin-user-allowlist.js";
 // Route imports
 import adminRouter from "./routes/admin.js";
 import agentRouter from "./routes/agent.js";
@@ -326,6 +327,9 @@ app.use("/admin", adminRouter);
 
 // Admin security management (IP allowlist, emergency tokens, settings)
 app.use("/api/admin/security", adminSecurityRouter);
+
+// Admin user allowlist management (email/domain auto-approval)
+app.use("/api/admin/user-allowlist", adminUserAllowlistRouter);
 
 // Platform admin dashboard (tenants, users, containers, stats)
 app.use("/api/admin", platformAdminRouter);

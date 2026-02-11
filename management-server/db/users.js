@@ -2,12 +2,12 @@
 import { query } from "./core.js";
 
 export const users = {
-  async create({ name, email, passwordHash, gatewayToken, telegramBotToken, telegramBotUsername }) {
+  async create({ name, email, passwordHash, gatewayToken, telegramBotToken, telegramBotUsername, status = "pending" }) {
     const res = await query(
-      `INSERT INTO users (name, email, password_hash, gateway_token, telegram_bot_token, telegram_bot_username)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO users (name, email, password_hash, gateway_token, telegram_bot_token, telegram_bot_username, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING *`,
-      [name, email, passwordHash, gatewayToken, telegramBotToken, telegramBotUsername],
+      [name, email, passwordHash, gatewayToken, telegramBotToken, telegramBotUsername, status],
     );
     return res.rows[0];
   },

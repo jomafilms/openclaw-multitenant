@@ -13,6 +13,8 @@ import { iconForTab, pathForTab, titleForTab, type Tab } from "./navigation.ts";
 
 export function renderTab(state: AppViewState, tab: Tab) {
   const href = pathForTab(tab, state.basePath);
+  // Show activity indicator on Chat tab when streaming in background
+  const showActivityIndicator = tab === "chat" && state.tab !== "chat" && Boolean(state.chatRunId);
   return html`
     <a
       href=${href}
@@ -35,6 +37,7 @@ export function renderTab(state: AppViewState, tab: Tab) {
     >
       <span class="nav-item__icon" aria-hidden="true">${icons[iconForTab(tab)]}</span>
       <span class="nav-item__text">${titleForTab(tab)}</span>
+      ${showActivityIndicator ? html`<span class="nav-item__activity" aria-label="Chat in progress"></span>` : ""}
     </a>
   `;
 }

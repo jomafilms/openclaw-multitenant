@@ -1004,6 +1004,8 @@ class ApiClient {
     wakeTime: number;
     queued?: boolean;
     reason?: string;
+    previousState?: string;
+    isFirstWake?: boolean;
   }> {
     return this.request("/api/container/wake", { method: "POST" });
   }

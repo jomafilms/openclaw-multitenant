@@ -127,6 +127,38 @@ router.get("/verify", strictAuthLimiter, async (req, res) => {
       return res.status(400).json({ error: result.error });
     }
 
+    // Skip provisioning for users pending approval
+    if (result.pendingApproval) {
+      console.log(`User ${result.user.id} pending approval - skipping container provisioning`);
+
+      setSessionCookie(res, result.sessionToken, result.sessionExpiresAt);
+
+      // Log pending approval to mesh audit
+      await meshAuditLogs.log({
+        eventType: MESH_AUDIT_EVENTS.AUTH_LOGIN,
+        actorId: result.user.id,
+        ipAddress: req.ip,
+        success: true,
+        details: { method: "magic_link", pendingApproval: true },
+      });
+
+      if (req.accepts("html")) {
+        return res.redirect(`${USER_UI_URL}/pending-approval`);
+      }
+
+      return res.json({
+        success: true,
+        pendingApproval: true,
+        user: {
+          id: result.user.id,
+          name: result.user.name,
+          email: result.user.email,
+          status: result.user.status,
+        },
+        sessionToken: result.sessionToken,
+      });
+    }
+
     // Provision container if user doesn't have one
     if (!result.user.container_id) {
       try {
