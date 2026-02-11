@@ -289,3 +289,29 @@ For now, Phase 3 will use server-rendered HTML with modern CSS.
 2. **Management API token** - use a strong, unique token for admin-ui to management-server communication
 3. **Session expiry** - sessions should expire after 24 hours
 4. **Audit logging** - all admin actions are logged via management-server's audit system
+
+---
+
+## Future Enhancements
+
+### Integrate Admin into User-UI (Recommended)
+
+Currently admin-ui requires SSH tunnel access (`ADMIN_BIND=127.0.0.1`). For easier multi-admin access, consider integrating admin features into user-ui:
+
+**Approach:**
+1. Add `role` field to users table (`user`, `admin`, `super_admin`)
+2. Add role check middleware to user-ui
+3. Add `/admin/*` routes to user-ui, gated by admin role
+4. Reuse existing management-server proxy pattern
+5. Share styling with existing user-ui components (Lit)
+
+**Benefits:**
+- Single app to deploy and maintain
+- Existing authentication (magic link + session)
+- Consistent UI/UX with user-facing pages
+- No SSH tunnel required for admins
+- Role-based access control
+
+**Alternative approaches:**
+- Expose admin-ui behind VPN/Tailscale (`ADMIN_BIND=0.0.0.0` on private network)
+- Keep SSH tunnel for single-admin deployments (current approach)
