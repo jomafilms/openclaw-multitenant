@@ -1,9 +1,7 @@
-'use strict';
-
-const crypto = require('crypto');
+import crypto from 'crypto';
 
 // Session secret for signing (from environment or generate random)
-const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
+export const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
 
 // In-memory session store
 const sessions = new Map();
@@ -18,7 +16,7 @@ const CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
  * Create a new session and store it in the session map.
  * @returns {string} The session token
  */
-function createSession() {
+export function createSession() {
   const token = crypto.randomBytes(32).toString('hex');
   sessions.set(token, {
     createdAt: Date.now(),
@@ -32,7 +30,7 @@ function createSession() {
  * @param {string} token - The session token to validate
  * @returns {Object|null} The session data if valid, null otherwise
  */
-function validateSession(token) {
+export function validateSession(token) {
   if (!token || typeof token !== 'string') {
     return null;
   }
@@ -56,7 +54,7 @@ function validateSession(token) {
  * Destroy a session by removing it from the store.
  * @param {string} token - The session token to destroy
  */
-function destroySession(token) {
+export function destroySession(token) {
   if (token && typeof token === 'string') {
     sessions.delete(token);
   }
@@ -81,13 +79,3 @@ const cleanupInterval = setInterval(cleanupExpiredSessions, CLEANUP_INTERVAL_MS)
 if (cleanupInterval.unref) {
   cleanupInterval.unref();
 }
-
-module.exports = {
-  createSession,
-  validateSession,
-  destroySession,
-  SESSION_SECRET,
-  // Export for testing purposes
-  _sessions: sessions,
-  _cleanupExpiredSessions: cleanupExpiredSessions
-};
