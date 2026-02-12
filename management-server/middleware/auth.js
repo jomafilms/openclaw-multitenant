@@ -32,6 +32,22 @@ function isSystemAdmin(user) {
  * SSE endpoints must use requireUserSSE middleware instead
  */
 export function requireUser(req, res, next) {
+  // Check for internal admin API token first (for admin-ui server-to-server calls)
+  const authHeader = req.headers.authorization;
+  const internalToken = process.env.INTERNAL_ADMIN_TOKEN;
+  if (internalToken && authHeader === `Bearer ${internalToken}`) {
+    // Internal admin request - create synthetic admin user
+    req.user = {
+      id: "internal-admin",
+      email: "admin@internal",
+      name: "Internal Admin",
+      status: "active",
+      is_platform_admin: true,
+      isInternalAdmin: true,
+    };
+    return next();
+  }
+
   // SECURITY: Only accept tokens from cookies or headers, never query params
   // Query param tokens can leak to server logs, browser history, referrer headers
   const token = req.cookies?.[SESSION_COOKIE] || req.headers["x-session-token"];
@@ -93,7 +109,8 @@ export function requireAdmin(req, res, next) {
   if (!req.user) {
     return res.status(401).json({ error: "Authentication required" });
   }
-  if (!isSystemAdmin(req.user)) {
+  // Allow internal admin or platform admin or email-based admin
+  if (!req.user.isInternalAdmin && !req.user.is_platform_admin && !isSystemAdmin(req.user)) {
     return res.status(403).json({ error: "Admin access required" });
   }
   next();
