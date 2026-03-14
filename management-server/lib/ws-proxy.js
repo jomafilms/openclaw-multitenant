@@ -157,14 +157,14 @@ export function setupWebSocketProxy(server) {
       ephemeralToken = generateEphemeralToken(userId, gatewayToken, 3600);
     }
 
-    // Connect to container using ephemeral token
-    // The gateway token is injected server-side and never exposed to the browser
-    const containerUrl = `${AGENT_SERVER_URL.replace("http", "ws")}/ws/${userId}`;
-    const containerWs = new WebSocket(containerUrl, {
-      headers: {
-        Authorization: `Bearer ${ephemeralToken}`,
-      },
-    });
+    // Connect directly to the container's gateway WebSocket
+    // The container runs OpenClaw gateway on its mapped port (e.g., 19000)
+    // accessible on the agent server host. We use the permanent gateway token
+    // since ephemeral tokens are not recognized by the OpenClaw gateway protocol.
+    const agentHost = new URL(AGENT_SERVER_URL).hostname;
+    const containerUrl = `ws://${agentHost}:${containerPort}`;
+    console.log(`[ws-proxy] Connecting to container at ${containerUrl} for user ${userId.slice(0, 8)}`);
+    const containerWs = new WebSocket(containerUrl);
 
     // Track connection state
     let containerConnected = false;
