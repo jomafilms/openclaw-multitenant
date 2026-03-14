@@ -6,6 +6,7 @@ import axios from "axios";
 import crypto from "crypto";
 import { Router } from "express";
 import { containers } from "../lib/containers.js";
+import { writeAuthProfiles, readAuthProfiles } from "../lib/setup.js";
 
 const router = Router();
 
@@ -122,14 +123,7 @@ router.post("/:userId/oauth/pkce/exchange", async (req, res) => {
       return res.status(400).json({ error: `Unsupported provider: ${provider}` });
     }
 
-    // Store tokens in container's vault
-    const container = containers.get(userId);
-    if (!container) {
-      return res.status(404).json({ error: "Container not found" });
-    }
-
-    // Write tokens to container's secrets file
-    // The container will encrypt these with the user's vault key
+    // Write tokens to container's auth-profiles.json on disk
     const credentialData = {
       provider,
       accessToken: tokens.access_token,
@@ -139,11 +133,10 @@ router.post("/:userId/oauth/pkce/exchange", async (req, res) => {
       scope,
       scopeLevel,
       connectedAt: new Date().toISOString(),
-      zeroKnowledge: true,
     };
 
-    // Store credential in container (will be vault-encrypted)
-    await storeCredentialInContainer(container, provider, credentialData);
+    // Store credential directly to container's data volume
+    storeCredentialInContainer(userId, provider, credentialData);
 
     console.log(
       `[oauth-pkce] Token exchange complete for user ${userId.slice(0, 8)}, provider: ${provider}`,
@@ -208,24 +201,18 @@ async function getGoogleUserEmail(accessToken) {
 }
 
 /**
- * Store OAuth credential in container's vault
+ * Store OAuth credential in container's auth-profiles.json
+ * Writes directly to the container's data volume via writeAuthProfiles
  */
-async function storeCredentialInContainer(container, provider, credentialData) {
-  const axios = (await import("axios")).default;
+function storeCredentialInContainer(userId, provider, credentialData) {
+  // Read existing profiles so we don't overwrite other providers
+  const existing = readAuthProfiles(userId);
+  const profiles = existing?.profiles || {};
 
-  // Call container's internal credential storage endpoint
-  // This writes to the container's encrypted secrets store
-  await axios.post(
-    `http://localhost:${container.port}/internal/credentials`,
-    {
-      provider,
-      credential: credentialData,
-    },
-    {
-      timeout: 10000,
-      headers: { "x-internal-token": container.internalToken },
-    },
-  );
+  // Merge new credential under provider key
+  profiles[provider] = credentialData;
+
+  writeAuthProfiles(userId, profiles);
 }
 
 /**
