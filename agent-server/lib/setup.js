@@ -151,9 +151,11 @@ export function writeGatewayConfig(userId, gatewayToken) {
   config.gateway.port = 18789;
   config.gateway.bind = "lan";
   config.gateway.auth = { mode: "token", token: gatewayToken };
-  config.gateway.controlUi = { allowInsecureAuth: true };
-  // Trust the UI nginx proxy and Docker network to forward X-Forwarded-* headers
-  // TRUSTED_PROXY_IPS: comma-separated list of IPs that can forward headers (e.g., nginx, load balancers)
+  // Allow WebSocket connections from any origin since the management server
+  // proxies browser connections (ws-proxy authenticates via session cookie)
+  config.gateway.controlUi = { allowInsecureAuth: true, allowedOrigins: ["*"] };
+  // Trust proxy IPs and Docker networks to forward X-Forwarded-* headers
+  // TRUSTED_PROXY_IPS: comma-separated list of IPs (e.g., nginx, management server, load balancers)
   const trustedProxyIps =
     process.env.TRUSTED_PROXY_IPS?.split(",")
       .map((s) => s.trim())
