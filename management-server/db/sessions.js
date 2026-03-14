@@ -62,7 +62,12 @@ export const sessions = {
   async findByToken(token) {
     const hashedToken = hashToken(token);
     const res = await query(
-      `SELECT s.*, u.* FROM sessions s
+      `SELECT s.*,
+              u.id AS user_id, u.email, u.name, u.status,
+              u.container_id, u.container_port, u.gateway_token,
+              u.tenant_id, u.is_platform_admin,
+              s.created_at AS created_at
+       FROM sessions s
        JOIN users u ON s.user_id = u.id
        WHERE s.token = $1
          AND s.expires_at > NOW()

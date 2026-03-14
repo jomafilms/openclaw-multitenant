@@ -212,10 +212,12 @@ export function setupWebSocketProxy(server) {
     });
 
     // Proxy messages from container to client
+    // Convert to string to ensure browser receives text frames (not binary Blobs)
     containerWs.on("message", (data) => {
       lastActivity = Date.now();
+      const text = typeof data === "string" ? data : data.toString("utf-8");
       if (clientWs.readyState === WebSocket.OPEN) {
-        clientWs.send(data);
+        clientWs.send(text);
       }
     });
 
@@ -226,8 +228,9 @@ export function setupWebSocketProxy(server) {
 
     clientWs.on("message", (data) => {
       lastActivity = Date.now();
+      const text = typeof data === "string" ? data : data.toString("utf-8");
       if (containerConnected && containerWs.readyState === WebSocket.OPEN) {
-        containerWs.send(data);
+        containerWs.send(text);
       }
     });
 
