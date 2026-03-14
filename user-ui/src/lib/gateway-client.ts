@@ -143,10 +143,12 @@ export class GatewayClient {
     if (this.closed) return;
 
     // Connect to container gateway
-    // In production (HTTPS), use nginx proxy; in development, connect directly
+    // In production (HTTPS), use management server's WebSocket proxy (/api/ws/)
+    // which authenticates via session cookie and proxies to the container.
+    // In development, connect directly to the container gateway.
     const isSecure = window.location.protocol === 'https:';
     const url = isSecure
-      ? `wss://${window.location.host}/ws/${this.opts.port}/`
+      ? `wss://${window.location.host}/api/ws/`
       : `ws://${this.opts.host}:${this.opts.port}`;
     console.log('[gateway] connecting to', url);
 
@@ -245,6 +247,12 @@ export class GatewayClient {
     }
 
     const frame = parsed as { type?: string; event?: string; payload?: unknown; id?: string; ok?: boolean; error?: { message?: string } };
+
+    // Proxy ready message from ws-proxy (container connection established)
+    if (frame.type === 'proxy_ready') {
+      console.log('[gateway] proxy connection to container established');
+      return;
+    }
 
     // Event frame
     if (frame.type === 'event') {
