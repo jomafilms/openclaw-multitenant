@@ -163,7 +163,11 @@ export function setupWebSocketProxy(server) {
     // since ephemeral tokens are not recognized by the OpenClaw gateway protocol.
     const agentHost = new URL(AGENT_SERVER_URL).hostname;
     const containerUrl = `ws://${agentHost}:${containerPort}`;
-    const containerWs = new WebSocket(containerUrl);
+    const containerWs = new WebSocket(containerUrl, {
+      headers: {
+        Origin: `http://${agentHost}:${containerPort}`,
+      },
+    });
 
     // Track connection state
     let containerConnected = false;
