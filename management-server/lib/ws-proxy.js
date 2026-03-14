@@ -173,7 +173,8 @@ export function setupWebSocketProxy(server) {
     let containerConnected = false;
     let lastActivity = Date.now();
 
-    // Heartbeat to keep connection alive and detect stale connections
+    // Heartbeat to keep BOTH sides alive and detect stale connections
+    // Without pinging the container, its gateway kills idle connections (~30min)
     const heartbeatInterval = setInterval(() => {
       if (Date.now() - lastActivity > CONNECTION_TIMEOUT) {
         console.log(`[ws-proxy] Connection timeout for user ${userId.slice(0, 8)}`);
@@ -183,6 +184,9 @@ export function setupWebSocketProxy(server) {
 
       if (clientWs.readyState === WebSocket.OPEN) {
         clientWs.ping();
+      }
+      if (containerConnected && containerWs.readyState === WebSocket.OPEN) {
+        containerWs.ping();
       }
     }, HEARTBEAT_INTERVAL);
 
