@@ -221,6 +221,12 @@ export function httpsRedirect() {
       return next();
     }
 
+    // Skip for internal admin API requests (server-to-server)
+    const internalToken = process.env.INTERNAL_ADMIN_TOKEN;
+    if (internalToken && req.headers.authorization === `Bearer ${internalToken}`) {
+      return next();
+    }
+
     // Check various headers that indicate HTTPS
     const isSecure =
       req.secure ||
